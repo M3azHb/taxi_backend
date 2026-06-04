@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Driver;
-use App\Models\Ride
+use App\Models\Ride;
 use App\Models\CarType;
 
 class Car extends Model
@@ -29,8 +29,8 @@ class Car extends Model
         return $this->belongsTo(CarType::class);
     }
 
-    public function rides() 
+    public function rides()
     {
-                return $this->belongsTo(Ride::class); 
+                return $this->belongsTo(Ride::class);
     }
 }
