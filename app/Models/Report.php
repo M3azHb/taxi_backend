@@ -48,6 +48,14 @@ class Report extends Model
     }
 
     /**
+     * السيارة المشكو منها في هذه الرحلة.
+     */
+    public function car(): BelongsTo
+    {
+        return $this->belongsTo(Car::class);
+    }
+
+    /**
      * من قدّم البلاغ (Customer أو Driver).
      * اسم العلاقة يطابق بادئة الأعمدة: reporter_id / reporter_type
      */
