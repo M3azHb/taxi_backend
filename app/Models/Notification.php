@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Notification extends Model
 {
-    // ─── Type Constants ───────────────────────────────────────────
+    // Type Constants
 
     const TYPE_NEW_RIDE_REQUEST  = 'new_ride_request';
     const TYPE_RIDE_ACCEPTED     = 'ride_accepted';
@@ -22,7 +22,7 @@ class Notification extends Model
     const TYPE_DISCOUNT_CODE     = 'discount_code';
     const TYPE_SYSTEM            = 'system';
 
-    // ─── Fillable ─────────────────────────────────────────────────
+    //  Fillable
 
     protected $fillable = [
         'notifiable_id',
@@ -34,7 +34,7 @@ class Notification extends Model
         'read_at',
     ];
 
-    // ─── Casts ────────────────────────────────────────────────────
+    //  Casts
 
     protected $casts = [
         'data'    => 'array',   // حرج جداً: بدونه يُحفظ JSON كـ string
