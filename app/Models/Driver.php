@@ -7,10 +7,22 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 use App\Models\Car;
 use App\Models\DriverLocation;
+use App\Models\Ride;
+use App\Models\Rating;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Driver extends Authenticatable
 {
     use HasApiTokens, Notifiable;
+    public function rides(): HasMany
+{
+    return $this->hasMany(Ride::class);
+}
+
+public function ratings(): HasMany
+{
+    return $this->hasMany(Rating::class);
+}
 
     const AVAILABILITY_ONLINE = 'online';
     const AVAILABILITY_OFFLINE = 'offline';
@@ -28,7 +40,7 @@ class Driver extends Authenticatable
 public function cars()
 {
     return $this->hasMany(Car::class);
-}
+}   
 
 public function location()
 {
@@ -40,14 +52,16 @@ public function location()
         'password',
         'phone',
         'availability',
-        'is_active'
+        'is_active',
+        'rating_average',
+        'rating_count',
     ];
 
     protected $hidden = [
         'password',
         'remember_token'
     ];
-
+    
     protected $casts = [
         'is_active' => 'boolean',
         'password' => 'hashed'
