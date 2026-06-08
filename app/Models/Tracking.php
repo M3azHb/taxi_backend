@@ -7,18 +7,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Tracking extends Model
 {
+    protected $table = 'trackings';
+
     protected $fillable = [
         'ride_id',
         'latitude',
         'longitude',
-        // CRITICAL: اسم الحقل هو created_at وليس recorded_at حسب التوثيق
-        // لكن نُبقي recorded_at في fillable إذا أضافه فريق DB
+        'recorded_at', // تم تثبيتها بناءً على الميجريشن الفعلي
     ];
 
     protected $casts = [
-        'latitude'  => 'decimal:7',
-        'longitude' => 'decimal:7',
-        // created_at يُعالَج تلقائياً من Eloquent كـ datetime
+        'latitude'    => 'decimal:7',
+        'longitude'   => 'decimal:7',
+        'recorded_at' => 'datetime',
     ];
 
     // ─── Relation ────────────────────────────────────────────────

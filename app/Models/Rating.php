@@ -42,40 +42,26 @@ class Rating extends Model
 
     // ─── Eloquent Events ─────────────────────────────────────────
 
-    /**
-     * عند إنشاء تقييم جديد — حدّث متوسط السائق تلقائياً.
-     *
-     * الصيغة الصحيحة للمتوسط المتحرك:
-     * newAverage = (oldAverage × oldCount + newScore) / (oldCount + 1)
-     *
-     * CRITICAL: لا نستخدم AVG() من DB لأنها تتجاهل الـ count المحفوظ
-     * ونستخدم الصيغة الحسابية للحفاظ على الدقة مع الـ count الفعلي.
-     *
-     * لماذا booted() وليس boot()؟
-     * booted() أحدث وأنظف — تُستدعى بعد تهيئة الـ Model الكاملة.
-     * boot() تعمل أيضاً لكن booted() أفضل ممارسة في Laravel 8+.
-     */
     protected static function booted(): void
     {
         static::created(function (Rating $rating) {
             $driver = $rating->driver;
 
-            if (! $driver) {
-                return; // لا نكسر النظام إذا لم يُوجد السائق
+            if (!$driver) {
+                return;
             }
 
-            $oldAverage = (float) $driver->average_rating;
-            $oldCount   = (int)   $driver->count_rating;
+            // التصحيح: استخدام الأسماء الصحيحة في جدول معاذ وقاعدة البيانات
+            $oldAverage = (float) $driver->rating_average;
+            $oldCount   = (int)   $driver->rating_count;
             $newScore   = (int)   $rating->score;
 
-            // الصيغة الصحيحة للمتوسط المتحرك
-            $newAverage = ($oldAverage * $oldCount + $newScore) / ($oldCount + 1);
             $newCount   = $oldCount + 1;
+            $newAverage = (($oldAverage * $oldCount) + $newScore) / $newCount;
 
-            // round لمنزلتين عشريتين — قيم مثل 4.666666 تُخزن كـ 4.67
             $driver->update([
-                'average_rating' => round($newAverage, 2),
-                'count_rating'   => $newCount,
+                'rating_average' => round($newAverage, 2),
+                'rating_count'   => $newCount,
             ]);
         });
     }
