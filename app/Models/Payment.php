@@ -17,9 +17,13 @@ class Payment extends Model
     protected $fillable = [
         'ride_id',
         'discount_code_id',
-        'amount',
+        'subtotal',
         'discount_amount',
-        'final_amount',
+        'amount',
+        'commission_percentage',
+        'commission_amount',
+        'driver_earning',
+        'payment_method',
         'status',
         'paid_at',
     ];
@@ -27,17 +31,20 @@ class Payment extends Model
     // ─── Casts ───────────────────────────────────────────────────
 
     protected $casts = [
-        'amount'          => 'decimal:2',
-        'discount_amount' => 'decimal:2',
-        'final_amount'    => 'decimal:2',
-        'paid_at'         => 'datetime',
+        'subtotal'              => 'decimal:2',
+        'discount_amount'       => 'decimal:2',
+        'amount'                => 'decimal:2',
+        'commission_percentage' => 'decimal:2',
+        'commission_amount'     => 'decimal:2',
+        'driver_earning'        => 'decimal:2',
+        'paid_at'               => 'datetime',
     ];
 
     // ─── Default Values ──────────────────────────────────────────
 
-    // كل payment يبدأ بـ pending — تحمي من NULL في DB
     protected $attributes = [
-        'status' => self::STATUS_PENDING,
+        'status'         => self::STATUS_PENDING,
+        'payment_method' => 'cash',
     ];
 
     // ─── Relations ───────────────────────────────────────────────
@@ -49,22 +56,15 @@ class Payment extends Model
 
     public function discountCode(): BelongsTo
     {
-        return $this->belongsTo(DiscountCode::class);
+        return $this->belongsTo(DiscountCode::class, 'discount_code_id');
     }
 
     // ─── Methods ─────────────────────────────────────────────────
 
-    /**
-     * سجّل استلام الدفع.
-     *
-     * CRITICAL: يجب التحقق من الحالة قبل التحديث
-     * لا نُعيد كتابة paid_at إذا كان مدفوعاً مسبقاً
-     * (نفس مشكلة markAsRead في Notification)
-     */
     public function markAsPaid(): bool
     {
         if ($this->status === self::STATUS_PAID) {
-            return false; // مدفوع مسبقاً — لا نفعل شيئاً
+            return false;
         }
 
         return $this->update([
@@ -73,17 +73,11 @@ class Payment extends Model
         ]);
     }
 
-    /**
-     * هل تم الدفع؟
-     */
     public function isPaid(): bool
     {
         return $this->status === self::STATUS_PAID;
     }
 
-    /**
-     * هل الدفع معلق؟
-     */
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;

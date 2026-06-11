@@ -31,6 +31,6 @@ class Car extends Model
 
     public function rides()
     {
-                return $this->belongsTo(Ride::class);
+        return $this->hasMany(Ride::class);
     }
 }
