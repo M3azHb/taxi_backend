@@ -3,25 +3,35 @@
 namespace App\Http\Controllers\Api\Customer;
 
 use App\Http\Controllers\Controller;
-use App\Models\DiscountCode;
+use App\Services\DiscountCodeService;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class DiscountCodeController extends Controller
 {
+    public function __construct(protected DiscountCodeService $discountCodeService)
+    {
+    }
+
+    /**
+     * POST /api/customer/discount-codes/validate
+     */
     public function validateCode(Request $request): JsonResponse
     {
         $data = $request->validate([
             'code' => ['required', 'string'],
         ]);
 
-        $discount = DiscountCode::where('code', $data['code'])->first();
+        try {
+            $discount = $this->discountCodeService->validateCode($data['code']);
+        } catch (Exception $e) {
+            $status = $e->getMessage() === 'CODE_NOT_FOUND' ? 404 : 422;
 
-        if (!$discount || !$discount->isValid()) {
             return response()->json([
                 'success' => false,
                 'message' => 'الكود غير صالح أو منتهي الصالحية',
-            ], 422);
+            ], $status);
         }
 
         return response()->json([
