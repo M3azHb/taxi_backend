@@ -9,8 +9,9 @@ use Illuminate\Support\Collection;
 
 class ReportService
 {
-    //Customer Reports
-
+    /**
+     * Customer submits a report against a driver.
+     */
     public function submitReportByCustomer(Customer $customer, array $data): Report
     {
         return Report::create([
@@ -24,13 +25,20 @@ class ReportService
         ]);
     }
 
+    /**
+     * Get all reports submitted by a customer.
+     */
     public function getReportsByCustomer(Customer $customer): Collection
     {
-        return $customer->submittedReports()->with(['reported', 'ride'])->latest()->get();
+        return $customer->submittedReports()
+            ->with(['reported', 'ride'])
+            ->latest()
+            ->get();
     }
 
-    // Driver Reports
-
+    /**
+     * Driver submits a report against a customer.
+     */
     public function submitReportByDriver(Driver $driver, array $data): Report
     {
         return Report::create([
@@ -44,8 +52,14 @@ class ReportService
         ]);
     }
 
+    /**
+     * Get all reports submitted by a driver.
+     */
     public function getReportsByDriver(Driver $driver): Collection
     {
-        return $driver->submittedReports()->with(['reported', 'ride'])->latest()->get();
+        return $driver->submittedReports()
+            ->with(['reported', 'ride'])
+            ->latest()
+            ->get();
     }
 }

@@ -2,27 +2,38 @@
 
 namespace App\Services;
 
+use App\Models\BlockList;
 use App\Models\Customer;
 use App\Models\Driver;
-use App\Models\BlockList;
-use Illuminate\Support\Collection;
 use Exception;
+use Illuminate\Support\Collection;
 
 class BlockService
 {
+    /**
+     * ============ Customer blocking Driver ============
+     */
 
+    /**
+     * Get all drivers blocked by this customer.
+     */
     public function getBlocksByCustomer(Customer $customer): Collection
     {
-        return $customer->blockedUsers()->with('blocked')->latest()->get();
+        return $customer->blockedUsers()
+            ->with('blocked')
+            ->latest()
+            ->get();
     }
 
-    public function blockDriver(Customer $customer, int $driverId, ?string $reason): BlockList
+    /**
+     * Customer blocks a driver.
+     */
+    public function blockDriver(Customer $customer, int $driverId, ?string $reason = null): BlockList
     {
         $driver = Driver::findOrFail($driverId);
 
-        // التحقق من عدم وجود حظر سابق
         if (BlockList::isBlocked($customer, $driver)) {
-            throw new Exception('السائق محظور مسبقاً');
+            throw new Exception('السائق محظور مسبقًا');
         }
 
         return BlockList::create([
@@ -34,6 +45,9 @@ class BlockService
         ]);
     }
 
+    /**
+     * Customer unblocks a driver.
+     */
     public function unblockDriver(Customer $customer, int $driverId): bool
     {
         return BlockList::where('blocker_id', $customer->id)
@@ -43,18 +57,30 @@ class BlockService
             ->delete() > 0;
     }
 
+    /**
+     * ============ Driver blocking Customer ============
+     */
 
+    /**
+     * Get all customers blocked by this driver.
+     */
     public function getBlocksByDriver(Driver $driver): Collection
     {
-        return $driver->blockedUsers()->with('blocked')->latest()->get();
+        return $driver->blockedUsers()
+            ->with('blocked')
+            ->latest()
+            ->get();
     }
 
-    public function blockCustomer(Driver $driver, int $customerId, ?string $reason): BlockList
+    /**
+     * Driver blocks a customer.
+     */
+    public function blockCustomer(Driver $driver, int $customerId, ?string $reason = null): BlockList
     {
         $customer = Customer::findOrFail($customerId);
 
         if (BlockList::isBlocked($driver, $customer)) {
-            throw new Exception('الزبون محظور مسبقاً');
+            throw new Exception('الزبون محظور مسبقًا');
         }
 
         return BlockList::create([
@@ -66,6 +92,9 @@ class BlockService
         ]);
     }
 
+    /**
+     * Driver unblocks a customer.
+     */
     public function unblockCustomer(Driver $driver, int $customerId): bool
     {
         return BlockList::where('blocker_id', $driver->id)

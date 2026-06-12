@@ -2,48 +2,59 @@
 
 namespace App\Services;
 
-use App\Models\Driver;
-use App\Models\Customer;
 use App\Models\BlockList;
+use App\Models\Customer;
+use App\Models\Driver;
 use Illuminate\Support\Collection;
 
 class DriverBrowseService
 {
     /**
-     * جلب السائقين المتاحين وتصفيتهم وحساب المسافة
+     * Get all available (online) drivers near the customer, filtered by car type,
+     * blocking relationship and radius, sorted by distance.
      */
     public function getAvailableDrivers(Customer $customer, array $params): Collection
     {
-        // 1. جلب السائقين المتاحين مع علاقاتهم
+        // 1. Online drivers + relations
         $drivers = Driver::online()
             ->with(['car.carType', 'location'])
             ->when($params['car_type_id'] ?? null, function ($q, $typeId) {
-                $q->whereHas('car', fn($q) => $q->where('car_type_id', $typeId));
+                $q->whereHas('car', fn ($q2) => $q2->where('car_type_id', $typeId));
             })
             ->get();
 
-        // 2. استبعاد من حظره الزبون أو حظروه (الحظر المتبادل)
-        $drivers = $drivers->filter(function ($driver) use ($customer) {
+        // 2. Exclude blocked relationships (in either direction)
+        $drivers = $drivers->filter(function (Driver $driver) use ($customer) {
             return !BlockList::isBlockedEither($customer, $driver);
         });
 
-        // 3. حساب المسافة لكل سائق إن وجد موقعه
-        $drivers->each(function ($driver) use ($params) {
+        // 3. Calculate distance for each driver
+        $drivers->each(function (Driver $driver) use ($params) {
             if ($driver->location) {
-                $driver->distance_km = $driver->location->distanceFrom($params['latitude'], $params['longitude']);
+                $driver->distance_km = $driver->location->distanceFrom(
+                    $params['latitude'],
+                    $params['longitude']
+                );
+            } else {
+                $driver->distance_km = null;
             }
         });
 
-        // 4. التصفية حسب الـ Radius (الافتراضي 5 كم)
+        // 4. Filter by radius if provided
         $radius = $params['radius_km'] ?? 5;
-        $drivers = $drivers->filter(fn($d) => ($d->distance_km ?? 0) <= $radius);
+        $drivers = $drivers->filter(function (Driver $driver) use ($radius) {
+            return $driver->distance_km !== null && $driver->distance_km <= $radius;
+        });
 
-        // 5. الترتيب حسب المسافة الأقرب
-        return $drivers->sortBy('distance_km')->values();
+        // 5. Sort by distance
+        $drivers = $drivers->sortBy('distance_km')->values();
+
+        // 6. Return
+        return $drivers;
     }
 
     /**
-     * جلب تفاصيل سائق معين
+     * Get full details of a single driver.
      */
     public function getDriverDetails(int $driverId): Driver
     {
