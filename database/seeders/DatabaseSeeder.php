@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Rating;
+use App\Models\Notification;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,11 +17,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
+        // 1. إنشاء المستخدم التجريبي
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // 2. إضافة التقييمات والإشعارات
+        Rating::factory()->count(10)->create();
+        Notification::factory()->count(10)->create();
     }
 }
