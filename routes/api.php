@@ -1,63 +1,133 @@
 <?php
 
+use App\Http\Controllers\Api\Customer\BlockListController as CustomerBlockListController;
+use App\Http\Controllers\Api\Customer\DiscountCodeController;
+use App\Http\Controllers\Api\Customer\DriverBrowseController;
+use App\Http\Controllers\Api\Customer\NotificationController as CustomerNotificationController;
+use App\Http\Controllers\Api\Customer\RatingController as CustomerRatingController;
+use App\Http\Controllers\Api\Customer\ReportController as CustomerReportController;
+use App\Http\Controllers\Api\Customer\RideController as CustomerRideController;
+use App\Http\Controllers\Api\Driver\BlockListController as DriverBlockListController;
+use App\Http\Controllers\Api\Driver\EarningsController;
+use App\Http\Controllers\Api\Driver\NotificationController as DriverNotificationController;
+use App\Http\Controllers\Api\Driver\PaymentController;
+use App\Http\Controllers\Api\Driver\RatingController as DriverRatingController;
+use App\Http\Controllers\Api\Driver\ReportController as DriverReportController;
+use App\Http\Controllers\Api\Driver\RideController as DriverRideController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\Customer as Customer;
-use App\Http\Controllers\Api\Driver as Driver;
 
-Route::middleware('auth:sanctum')->group(function () {
+/*
+|--------------------------------------------------------------------------
+| Customer Routes
+|--------------------------------------------------------------------------
+*/
+Route::prefix('customer')
+    ->middleware(['auth:sanctum', 'verified.customer'])
+    ->group(function () {
 
-    // 1. مسارات الزبون (Customer)
-    Route::prefix('customer')->group(function () {
-        Route::get('drivers/available', [Customer\DriverBrowseController::class, 'available']);
-        Route::get('drivers/{id}', [Customer\DriverBrowseController::class, 'show']);
-        Route::post('discount/validate', [Customer\DiscountCodeController::class, 'validateCode']);
-        Route::apiResource('blocks', Customer\BlockListController::class);
-        Route::apiResource('reports', Customer\ReportController::class);
+        // Driver Browsing
+        Route::prefix('drivers')->group(function () {
+            Route::get('available', [DriverBrowseController::class, 'available']);
+            Route::get('{id}', [DriverBrowseController::class, 'show']);
+        });
 
-        // مسارات الرحلات الخاصة بالزبون
-        Route::post('rides/estimate', [Customer\RideController::class, 'estimate']);
-        Route::post('rides', [Customer\RideController::class, 'store']);
-        Route::get('rides/active', [Customer\RideController::class, 'active']);
-        Route::get('rides/{id}', [Customer\RideController::class, 'show']);
-        Route::get('rides', [Customer\RideController::class, 'index']);
-        Route::post('rides/{id}/cancel', [Customer\RideController::class, 'cancel']);
-        Route::post('rides/{id}/rate', [Customer\RatingController::class, 'rate']);
+        // Discount Codes
+        Route::post('discount-codes/validate', [DiscountCodeController::class, 'validateCode']);
 
-        // الإشعارات
+        // Block List
+        Route::prefix('blocks')->group(function () {
+            Route::get('/', [CustomerBlockListController::class, 'index']);
+            Route::post('/', [CustomerBlockListController::class, 'store']);
+            Route::delete('{driver_id}', [CustomerBlockListController::class, 'destroy']);
+        });
+
+        // Reports
+        Route::prefix('reports')->group(function () {
+            Route::get('/', [CustomerReportController::class, 'index']);
+            Route::post('/', [CustomerReportController::class, 'store']);
+        });
+
+        // Notifications
         Route::prefix('notifications')->group(function () {
-            Route::get('/', [Customer\NotificationController::class, 'index']);
-            Route::get('unread-count', [Customer\NotificationController::class, 'unreadCount']);
-            Route::put('{id}/read', [Customer\NotificationController::class, 'markAsRead']);
-            Route::put('read-all', [Customer\NotificationController::class, 'markAllAsRead']);
+            Route::get('/', [CustomerNotificationController::class, 'index']);
+            Route::get('unread-count', [CustomerNotificationController::class, 'unreadCount']);
+            Route::put('read-all', [CustomerNotificationController::class, 'markAllAsRead']);
+            Route::put('{id}/read', [CustomerNotificationController::class, 'markAsRead']);
+        });
+
+        // Rides
+        Route::prefix('rides')->group(function () {
+            Route::post('estimate', [CustomerRideController::class, 'estimate']);
+            Route::get('active', [CustomerRideController::class, 'active']);
+            Route::get('/', [CustomerRideController::class, 'index']);
+            Route::post('/', [CustomerRideController::class, 'store']);
+            Route::get('{id}', [CustomerRideController::class, 'show']);
+            Route::put('{id}/cancel', [CustomerRideController::class, 'cancel']);
+            Route::get('{id}/tracking', [CustomerRideController::class, 'tracking']);
+            Route::post('{id}/rate', [CustomerRatingController::class, 'store']);
         });
     });
 
-    // 2. مسارات السائق (Driver)
-    Route::prefix('driver')->group(function () {
-        Route::apiResource('blocks', Driver\BlockListController::class);
-        Route::apiResource('reports', Driver\ReportController::class);
+/*
+|--------------------------------------------------------------------------
+| Driver Routes
+|--------------------------------------------------------------------------
+*/
+Route::prefix('driver')
+    ->middleware(['auth:sanctum', 'verified.driver'])
+    ->group(function () {
 
-        // المسارات التي تتطلب أن يكون السائق متاحاً (Available)
-        Route::middleware('driver.available')->group(function () {
-            Route::get('rides/pending', [Driver\RideController::class, 'pending']);
-            Route::get('rides/active', [Driver\RideController::class, 'active']);
-            Route::post('rides/{id}/accept', [Driver\RideController::class, 'accept']);
-            Route::post('rides/{id}/reject', [Driver\RideController::class, 'reject']);
-            Route::post('rides/{id}/arrive', [Driver\RideController::class, 'arrive']);
-            Route::post('rides/{id}/start', [Driver\RideController::class, 'start']);
-            Route::post('rides/{id}/complete', [Driver\RideController::class, 'complete']);
+        // Block List
+        Route::prefix('blocks')->group(function () {
+            Route::get('/', [DriverBlockListController::class, 'index']);
+            Route::post('/', [DriverBlockListController::class, 'store']);
+            Route::delete('{customer_id}', [DriverBlockListController::class, 'destroy']);
         });
 
-        // مسارات الأرباح والإشعارات (لا تتطلب أن يكون متاحاً)
-        Route::get('earnings/summary', [Driver\EarningsController::class, 'summary']);
-        Route::get('earnings/chart', [Driver\EarningsController::class, 'chart']);
+        // Reports
+        Route::prefix('reports')->group(function () {
+            Route::get('/', [DriverReportController::class, 'index']);
+            Route::post('/', [DriverReportController::class, 'store']);
+        });
 
+        // Notifications
         Route::prefix('notifications')->group(function () {
-            Route::get('/', [Driver\NotificationController::class, 'index']);
-            Route::get('unread-count', [Driver\NotificationController::class, 'unreadCount']);
-            Route::put('{id}/read', [Driver\NotificationController::class, 'markAsRead']);
-            Route::put('read-all', [Driver\NotificationController::class, 'markAllAsRead']);
-            Route::post('fcm-token', [Driver\NotificationController::class, 'storeFcmToken']);
+            Route::get('/', [DriverNotificationController::class, 'index']);
+            Route::get('unread-count', [DriverNotificationController::class, 'unreadCount']);
+            Route::put('read-all', [DriverNotificationController::class, 'markAllAsRead']);
+            Route::put('{id}/read', [DriverNotificationController::class, 'markAsRead']);
+            Route::post('fcm-token', [DriverNotificationController::class, 'storeFcmToken']);
+        });
+
+        // Rides
+        Route::prefix('rides')->group(function () {
+            Route::get('pending', [DriverRideController::class, 'pending']);
+            Route::get('active', [DriverRideController::class, 'active']);
+            Route::get('/', [DriverRideController::class, 'index']);
+            Route::get('{id}', [DriverRideController::class, 'show']);
+            Route::put('{id}/accept', [DriverRideController::class, 'accept']);
+            Route::put('{id}/reject', [DriverRideController::class, 'reject']);
+            Route::put('{id}/arrived', [DriverRideController::class, 'arrived']);
+            Route::put('{id}/start', [DriverRideController::class, 'start']);
+            Route::put('{id}/complete', [DriverRideController::class, 'complete']);
+            Route::put('{id}/cancel', [DriverRideController::class, 'cancel']);
+            Route::post('{id}/tracking', [DriverRideController::class, 'tracking']);
+            Route::put('{id}/payment/confirm', [PaymentController::class, 'confirm']);
+        });
+
+        // Payments
+        Route::get('payments', [PaymentController::class, 'index']);
+
+        // Earnings
+        Route::prefix('earnings')->group(function () {
+            Route::get('summary', [EarningsController::class, 'summary']);
+            Route::get('chart', [EarningsController::class, 'chart']);
+            Route::get('commission', [EarningsController::class, 'commission']);
+        });
+
+        // Ratings
+        Route::prefix('ratings')->group(function () {
+            Route::get('/', [DriverRatingController::class, 'index']);
+            Route::get('summary', [DriverRatingController::class, 'summary']);
         });
     });
-});
