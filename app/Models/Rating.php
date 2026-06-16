@@ -51,7 +51,6 @@ class Rating extends Model
                 return;
             }
 
-            // التصحيح: استخدام الأسماء الصحيحة في جدول معاذ وقاعدة البيانات
             $oldAverage = (float) $driver->rating_average;
             $oldCount   = (int)   $driver->rating_count;
             $newScore   = (int)   $rating->score;
