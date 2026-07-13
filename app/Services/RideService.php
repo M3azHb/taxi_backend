@@ -319,6 +319,12 @@ class RideService
 
     public function getPendingRidesForDriver(Driver $driver): Collection
     {
+        // مراعاة الحالة: السائق غير النشط (offline) أو المنشغل برحلة (busy)
+        // لا يرى أي طلبات. isAvailable() = is_active && availability === online.
+        if (! $driver->isAvailable()) {
+            return collect();
+        }
+
         // نموذج البثّ: كل الطلبات المعلّقة غير المُسنَدة لأي سائق،
         // المطابقة لنوع سيارة هذا السائق، وغير المحظورة معه.
         $carTypeId = $driver->car?->car_type_id;
