@@ -17,6 +17,12 @@ use App\Http\Controllers\Api\Driver\RatingController as DriverRatingController;
 use App\Http\Controllers\Api\Driver\ReportController as DriverReportController;
 use App\Http\Controllers\Api\Driver\RideController as DriverRideController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Customer\CarTypeController;
+use App\Http\Controllers\Api\Driver\CarController;
+use App\Http\Controllers\Api\Driver\AvailabilityController;
+use App\Http\Controllers\Api\Driver\LocationController;
+/*
+
 /*
 |--------------------------------------------------------------------------
 | Customer Authentication
@@ -32,11 +38,8 @@ Route::prefix('customer/auth')->group(function () {
     });
 });
 
-/*
-|--------------------------------------------------------------------------
-| Customer Routes
-|--------------------------------------------------------------------------
-*/
+
+
 Route::prefix('customer')
     ->middleware(['auth:sanctum', 'verified.customer'])
     ->group(function () {
@@ -55,8 +58,11 @@ Route::prefix('customer')
         // Discount Codes
         Route::post('discount-codes/validate', [DiscountCodeController::class, 'validateCode']);
 
+        Route::get('car-types', [CarTypeController::class, 'index']);
+
+
         // Block List
-        Route::prefix('blocks')->group(function () {
+        Route::prefix('blocks')->group(function (){
             Route::get('/', [CustomerBlockListController::class, 'index']);
             Route::post('/', [CustomerBlockListController::class, 'store']);
             Route::delete('{driver_id}', [CustomerBlockListController::class, 'destroy']);
@@ -97,6 +103,12 @@ Route::prefix('customer')
 Route::prefix('driver')
     ->middleware(['auth:sanctum', 'verified.driver'])
     ->group(function () {
+
+    Route::get('car', [CarController::class, 'show']);
+Route::post('car', [CarController::class, 'store']);
+Route::put('car', [CarController::class, 'update']);
+Route::put('availability', [AvailabilityController::class, 'update']);
+Route::put('location', [\App\Http\Controllers\Api\Driver\LocationController::class, 'update']);
 
         // Block List
         Route::prefix('blocks')->group(function () {
