@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Report;
+use App\Models\BlockList;
+use App\Models\Notification;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;

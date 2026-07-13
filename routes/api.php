@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Customer\ProfileController;
+use App\Http\Controllers\Api\Customer\AuthController;
 use App\Http\Controllers\Api\Customer\BlockListController as CustomerBlockListController;
 use App\Http\Controllers\Api\Customer\DiscountCodeController;
 use App\Http\Controllers\Api\Customer\DriverBrowseController;
@@ -15,6 +17,20 @@ use App\Http\Controllers\Api\Driver\RatingController as DriverRatingController;
 use App\Http\Controllers\Api\Driver\ReportController as DriverReportController;
 use App\Http\Controllers\Api\Driver\RideController as DriverRideController;
 use Illuminate\Support\Facades\Route;
+/*
+|--------------------------------------------------------------------------
+| Customer Authentication
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('customer/auth')->group(function () {
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('logout', [AuthController::class, 'logout']);
+    });
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +46,11 @@ Route::prefix('customer')
             Route::get('available', [DriverBrowseController::class, 'available']);
             Route::get('{id}', [DriverBrowseController::class, 'show']);
         });
+       
+        // Profile
+            Route::get('profile', [ProfileController::class, 'show']);
+            Route::put('profile', [ProfileController::class, 'update']);
+            Route::put('profile/change-password', [ProfileController::class, 'changePassword']);
 
         // Discount Codes
         Route::post('discount-codes/validate', [DiscountCodeController::class, 'validateCode']);
