@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 
-class Admin extends Authenticatable
+class Admin extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, Notifiable;
 
@@ -24,4 +26,12 @@ class Admin extends Authenticatable
     protected $casts = [
         'password' => 'hashed'
     ];
+
+    /**
+     * يسمح لأي أدمن موجود بالدخول للوحة التحكم.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return true;
+    }
 }

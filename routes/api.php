@@ -1,7 +1,8 @@
 <?php
 
-use App\Http\Controllers\Api\Customer\ProfileController;
-use App\Http\Controllers\Api\Customer\AuthController;
+use App\Http\Controllers\Api\Customer\AuthController as CustomerAuthController;
+use App\Http\Controllers\Api\Customer\ProfileController as CustomerProfileController;
+use App\Http\Controllers\Api\Customer\CarTypeController;
 use App\Http\Controllers\Api\Customer\BlockListController as CustomerBlockListController;
 use App\Http\Controllers\Api\Customer\DiscountCodeController;
 use App\Http\Controllers\Api\Customer\DriverBrowseController;
@@ -9,6 +10,11 @@ use App\Http\Controllers\Api\Customer\NotificationController as CustomerNotifica
 use App\Http\Controllers\Api\Customer\RatingController as CustomerRatingController;
 use App\Http\Controllers\Api\Customer\ReportController as CustomerReportController;
 use App\Http\Controllers\Api\Customer\RideController as CustomerRideController;
+use App\Http\Controllers\Api\Driver\AuthController as DriverAuthController;
+use App\Http\Controllers\Api\Driver\ProfileController as DriverProfileController;
+use App\Http\Controllers\Api\Driver\CarController as DriverCarController;
+use App\Http\Controllers\Api\Driver\AvailabilityController;
+use App\Http\Controllers\Api\Driver\LocationController;
 use App\Http\Controllers\Api\Driver\BlockListController as DriverBlockListController;
 use App\Http\Controllers\Api\Driver\EarningsController;
 use App\Http\Controllers\Api\Driver\NotificationController as DriverNotificationController;
@@ -17,52 +23,56 @@ use App\Http\Controllers\Api\Driver\RatingController as DriverRatingController;
 use App\Http\Controllers\Api\Driver\ReportController as DriverReportController;
 use App\Http\Controllers\Api\Driver\RideController as DriverRideController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\Customer\CarTypeController;
-use App\Http\Controllers\Api\Driver\CarController;
-use App\Http\Controllers\Api\Driver\AvailabilityController;
-use App\Http\Controllers\Api\Driver\LocationController;
-/*
 
 /*
 |--------------------------------------------------------------------------
-| Customer Authentication
+| Public Authentication (Customer + Driver)
 |--------------------------------------------------------------------------
 */
-
-Route::prefix('customer/auth')->group(function () {
-    Route::post('register', [AuthController::class, 'register']);
-    Route::post('login', [AuthController::class, 'login']);
-
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::post('logout', [AuthController::class, 'logout']);
-    });
+Route::prefix('customer')->group(function () {
+    Route::post('register', [CustomerAuthController::class, 'register']);
+    Route::post('login', [CustomerAuthController::class, 'login']);
 });
 
+Route::prefix('driver')->group(function () {
+    Route::post('register', [DriverAuthController::class, 'register']);
+    Route::post('login', [DriverAuthController::class, 'login']);
+    Route::post('verify-otp', [DriverAuthController::class, 'verifyOtp']);
+    Route::post('resend-otp', [DriverAuthController::class, 'resendOtp']);
+});
 
-
+/*
+|--------------------------------------------------------------------------
+| Customer Routes (protected)
+|--------------------------------------------------------------------------
+*/
 Route::prefix('customer')
     ->middleware(['auth:sanctum', 'verified.customer'])
     ->group(function () {
+
+        // Auth (session)
+        Route::post('logout', [CustomerAuthController::class, 'logout']);
+        Route::get('me', [CustomerAuthController::class, 'me']);
+
+        // Profile
+        Route::get('profile', [CustomerProfileController::class, 'show']);
+        Route::put('profile', [CustomerProfileController::class, 'update']);
+        Route::put('profile/change-password', [CustomerProfileController::class, 'changePassword']);
+
+        // Car Types (list for ride request)
+        Route::get('car-types', [CarTypeController::class, 'index']);
 
         // Driver Browsing
         Route::prefix('drivers')->group(function () {
             Route::get('available', [DriverBrowseController::class, 'available']);
             Route::get('{id}', [DriverBrowseController::class, 'show']);
         });
-       
-        // Profile
-            Route::get('profile', [ProfileController::class, 'show']);
-            Route::put('profile', [ProfileController::class, 'update']);
-            Route::put('profile/change-password', [ProfileController::class, 'changePassword']);
 
         // Discount Codes
         Route::post('discount-codes/validate', [DiscountCodeController::class, 'validateCode']);
 
-        Route::get('car-types', [CarTypeController::class, 'index']);
-
-
         // Block List
-        Route::prefix('blocks')->group(function (){
+        Route::prefix('blocks')->group(function () {
             Route::get('/', [CustomerBlockListController::class, 'index']);
             Route::post('/', [CustomerBlockListController::class, 'store']);
             Route::delete('{driver_id}', [CustomerBlockListController::class, 'destroy']);
@@ -80,6 +90,7 @@ Route::prefix('customer')
             Route::get('unread-count', [CustomerNotificationController::class, 'unreadCount']);
             Route::put('read-all', [CustomerNotificationController::class, 'markAllAsRead']);
             Route::put('{id}/read', [CustomerNotificationController::class, 'markAsRead']);
+            Route::post('fcm-token', [CustomerNotificationController::class, 'storeFcmToken']);
         });
 
         // Rides
@@ -97,18 +108,30 @@ Route::prefix('customer')
 
 /*
 |--------------------------------------------------------------------------
-| Driver Routes
+| Driver Routes (protected)
 |--------------------------------------------------------------------------
 */
 Route::prefix('driver')
     ->middleware(['auth:sanctum', 'verified.driver'])
     ->group(function () {
 
-    Route::get('car', [CarController::class, 'show']);
-Route::post('car', [CarController::class, 'store']);
-Route::put('car', [CarController::class, 'update']);
-Route::put('availability', [AvailabilityController::class, 'update']);
-Route::put('location', [\App\Http\Controllers\Api\Driver\LocationController::class, 'update']);
+        // Auth (session)
+        Route::post('logout', [DriverAuthController::class, 'logout']);
+        Route::get('me', [DriverAuthController::class, 'me']);
+
+        // Profile
+        Route::get('profile', [DriverProfileController::class, 'show']);
+        Route::put('profile', [DriverProfileController::class, 'update']);
+
+        // Car management
+        Route::get('car-types', [DriverCarController::class, 'types']);
+        Route::get('car', [DriverCarController::class, 'show']);
+        Route::post('car', [DriverCarController::class, 'store']);
+        Route::put('car', [DriverCarController::class, 'update']);
+
+        // Availability + Location
+        Route::put('availability', [AvailabilityController::class, 'update']);
+        Route::post('location', [LocationController::class, 'update']);
 
         // Block List
         Route::prefix('blocks')->group(function () {

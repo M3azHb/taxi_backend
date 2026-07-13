@@ -71,4 +71,22 @@ class NotificationController extends Controller
             'message' => 'تم تعليم كل الإشعارات كمقروءة',
         ]);
     }
+
+    /**
+     * POST /api/customer/notifications/fcm-token
+     */
+    public function storeFcmToken(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'fcm_token'   => ['required', 'string'],
+            'device_type' => ['required', 'in:android,ios'],
+        ]);
+
+        $this->notificationService->registerFcmToken($request->user(), $data['fcm_token'], $data['device_type']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم حفظ التوكن',
+        ]);
+    }
 }

@@ -37,22 +37,14 @@ return [
 
     'guards' => [
         'web' => [
-  'customer'  => [
-            'driver' => 'sanctum',
-            'provider' => 'customers',
-                 ],   
-
-'driver' => [
-             'driver' => 'sanctum',
-    'provider' => 'drivers',
-            ],
-
-'admin' => [
-    'driver' => 'sanctum',
-    'provider' => 'admins',
-],
             'driver' => 'session',
             'provider' => 'users',
+        ],
+
+        // حارس لوحة تحكم الأدمن (Filament) — مبني على الجلسة وجدول admins.
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'admins',
         ],
     ],
 
@@ -79,10 +71,20 @@ return [
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'admins' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Admin::class,
+        ],
+
+        'customers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Customer::class,
+        ],
+
+        'drivers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Driver::class,
+        ],
     ],
 
     /*

@@ -16,6 +16,7 @@ class LocationService
                 'longitude' => $data['longitude'],
                 'heading' => $data['heading'] ?? null,
                 'speed' => $data['speed'] ?? null,
+                'recorded_at' => now(),
             ]
         );
     }

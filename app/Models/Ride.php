@@ -176,6 +176,14 @@ class Ride extends Model
         return $this->status === self::STATUS_COMPLETED;
     }
 
+    /**
+     * يمكن تقييم الرحلة فقط إذا اكتملت ولم تُقيَّم بعد.
+     */
+    public function canBeRated(): bool
+    {
+        return $this->isCompleted() && ! $this->isRated();
+    }
+
     public function isInProgress(): bool
     {
         return $this->status === self::STATUS_IN_PROGRESS;

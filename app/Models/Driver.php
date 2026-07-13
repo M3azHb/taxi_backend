@@ -42,7 +42,14 @@ public function ratings(): HasMany
 public function cars()
 {
     return $this->hasMany(Car::class);
-}   
+}
+
+// علاقة السيارة المفردة (كل سائق يملك سيارة واحدة في نظامنا) —
+// يستخدمها DriverBrowseService في with(['car.carType']).
+public function car()
+{
+    return $this->hasOne(Car::class);
+}
 
 public function location()
 {
