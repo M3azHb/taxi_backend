@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Rating extends Model
 {
-    // ─── Fillable ────────────────────────────────────────────────
+    // Fillable
 
     protected $fillable = [
         'ride_id',
@@ -17,13 +17,13 @@ class Rating extends Model
         'comment',
     ];
 
-    // ─── Casts ───────────────────────────────────────────────────
+    // Casts
 
     protected $casts = [
         'score' => 'integer',
     ];
 
-    // ─── Relations ───────────────────────────────────────────────
+    // Relations
 
     public function ride(): BelongsTo
     {
@@ -40,7 +40,7 @@ class Rating extends Model
         return $this->belongsTo(Driver::class);
     }
 
-    // ─── Eloquent Events ─────────────────────────────────────────
+    // Eloquent Events
 
     protected static function booted(): void
     {

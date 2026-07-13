@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 class ReportService
 {
     /**
-     * Customer submits a report against a driver.
+     * استقبال بيانات البلاغ من الزبون وحفظها في DB
      */
     public function submitReportByCustomer(Customer $customer, array $data): Report
     {
@@ -26,18 +26,18 @@ class ReportService
     }
 
     /**
-     * Get all reports submitted by a customer.
+     * جلب قائمة البلاغات التي قدمها زبون
      */
     public function getReportsByCustomer(Customer $customer): Collection
     {
         return $customer->submittedReports()
-            ->with(['reported', 'ride'])
+            ->with(['reported', 'ride'])   // استخدمنا eager loading
             ->latest()
             ->get();
     }
 
     /**
-     * Driver submits a report against a customer.
+     * استقبال بيانات البلاغ من السائق وحفظها في DB
      */
     public function submitReportByDriver(Driver $driver, array $data): Report
     {
@@ -53,7 +53,7 @@ class ReportService
     }
 
     /**
-     * Get all reports submitted by a driver.
+     * جلب قائمة البلاغات التي قدمها زبون
      */
     public function getReportsByDriver(Driver $driver): Collection
     {

@@ -17,24 +17,17 @@ class BlockList extends Model
 
     // Relations
 
-    /**
-     * من قام بالحظر (Customer أو Driver).
-     * اسم العلاقة يطابق بادئة الأعمدة: blocker_id / blocker_type
-     */
     public function blocker(): MorphTo
     {
         return $this->morphTo();
     }
 
-    /**
-     * من تم حظره (Customer أو Driver).
-     */
+
     public function blocked(): MorphTo
     {
         return $this->morphTo();
     }
 
-    // Static Methods
 
 
     public static function isBlocked(Model $blocker, Model $blocked): bool
@@ -46,10 +39,6 @@ class BlockList extends Model
             ->exists();
     }
 
-    /**
-     * هل يوجد حظر في أي اتجاه بين المستخدمين؟
-     * مفيد للتحقق قبل إتاحة الرحلة بين طرفين.
-     */
     public static function isBlockedEither(Model $userA, Model $userB): bool
     {
         return static::isBlocked($userA, $userB)
