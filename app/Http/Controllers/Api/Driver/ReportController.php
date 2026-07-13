@@ -30,7 +30,7 @@ class ReportController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إرسال البالغ، ستتم مراجعته',
+            'message' => 'تم إرسال البلاغ، ستتم مراجعته',
             'data'    => [
                 'id'     => $report->id,
                 'status' => $report->status,

@@ -35,10 +35,6 @@ class DiscountCode extends Model
 
     // Methods
 
-    /**
-     * هل الكود صالح للاستخدام؟
-     * يجب أن يكون: نشطاً + لم تنتهِ صلاحيته + لم يتجاوز الحد (أو بلا حد).
-     */
     public function isValid(): bool
     {
         if (! $this->is_active) {
@@ -57,27 +53,17 @@ class DiscountCode extends Model
         return true;
     }
 
-    /**
-     * احسب قيمة الخصم على مبلغ معين.
-     * يُرجع الخصم مقرّباً لمنزلتين عشريتين.
-     */
     public function calculateDiscount(float $amount): float
     {
         return round($amount * ((float) $this->discount_percentage / 100), 2);
     }
 
-    /**
-     * زِد عداد الاستخدام بمقدار واحد — atomic operation تحمي من race condition.
-     */
     public function incrementUsage(): void
     {
         $this->increment('used_count');
     }
 
-    /**
-     * احسب المبلغ النهائي بعد تطبيق الخصم.
-     * Helper مريح للاستخدام مباشرة في Controller.
-     */
+
     public function applyDiscount(float $amount): float
     {
         return round($amount - $this->calculateDiscount($amount), 2);

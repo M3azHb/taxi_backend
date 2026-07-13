@@ -37,11 +37,11 @@ class Notification extends Model
     //  Casts
 
     protected $casts = [
-        'data'    => 'array',   // حرج جداً: بدونه يُحفظ JSON كـ string
+        'data'    => 'array',
         'read_at' => 'datetime',
     ];
 
-    // ─── Relations ────────────────────────────────────────────────
+    //  Relations
 
     /**
      * صاحب الإشعار (Customer أو Driver).
@@ -52,7 +52,7 @@ class Notification extends Model
         return $this->morphTo();
     }
 
-    // ─── Methods ──────────────────────────────────────────────────
+    // Methods
 
     public function markAsRead(): void
     {
