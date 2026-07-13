@@ -11,9 +11,20 @@ class ProfileController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
+        $customer = $request->user();
+
         return response()->json([
             'success' => true,
-            'data' => $request->user(),
+            'data' => [
+                'id'    => $customer->id,
+                'name'  => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'stats' => [
+                    'total_rides'     => $customer->rides()->count(),
+                    'completed_rides' => $customer->rides()->where('status', 'completed')->count(),
+                ],
+            ],
         ]);
     }
 

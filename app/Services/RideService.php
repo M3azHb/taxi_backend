@@ -182,13 +182,13 @@ class RideService
     public function getRideForCustomer(Customer $customer, int $rideId): Ride
     {
         return $customer->rides()
-            ->with(['driver', 'car.carType', 'payment', 'rating'])
+            ->with(['driver.car.carType', 'car.carType', 'payment', 'rating'])
             ->findOrFail($rideId);
     }
 
     public function getRideHistoryForCustomer(Customer $customer, array $filters): LengthAwarePaginator
     {
-        $query = $customer->rides()->with(['driver', 'car'])->latest();
+        $query = $customer->rides()->with(['driver.car', 'car'])->latest();
 
         if (($filters['status'] ?? 'all') !== 'all') {
             $query->where('status', $filters['status']);
@@ -371,7 +371,8 @@ class RideService
                 throw new Exception('يجب أن تكون متصلًا لقبول الرحلات');
             }
 
-            if ($driver->rides()->active()->exists()) {
+            // نستثني الرحلة الجاري قبولها نفسها (لأنها pending = نشطة)
+            if ($driver->rides()->active()->where('id', '!=', $rideId)->exists()) {
                 throw new Exception('لديك رحلة نشطة بالفعل');
             }
 

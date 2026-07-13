@@ -1,8 +1,8 @@
 FROM php:8.3-apache
 
 RUN apt-get update && apt-get install -y \
-    libzip-dev zip unzip git nano \
-    && docker-php-ext-install pdo pdo_mysql zip opcache \
+    libzip-dev libicu-dev zip unzip git nano \
+    && docker-php-ext-install pdo pdo_mysql zip opcache intl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN a2enmod rewrite headers

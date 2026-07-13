@@ -10,6 +10,15 @@ use Illuminate\Http\Request;
 
 class CarController extends Controller
 {
+    // GET /api/driver/car-types — قائمة أنواع السيارات لاختيارها عند إضافة سيارة
+    public function types(CarService $carService)
+    {
+        return response()->json([
+            'success' => true,
+            'data'    => $carService->getActiveCarTypes(),
+        ]);
+    }
+
     public function show(Request $request, CarService $carService)
     {
         $car = $carService->getDriverCar($request->user());
