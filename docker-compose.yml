@@ -1,0 +1,31 @@
+services:
+    mashwar-backend:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: mashwar-backend
+        restart: unless-stopped
+        ports:
+            - "127.0.0.1:8107:80"
+        env_file:
+            - .env
+        environment:
+            APP_ENV: production
+            APP_DEBUG: "false"
+            APP_URL: "https://mashwar.abukm.com"
+            DB_CONNECTION: mysql
+            DB_HOST: dawali_db
+            DB_PORT: 3306
+            DB_DATABASE: mashwar
+            DB_USERNAME: mashwar
+            DB_PASSWORD: "${DB_PASSWORD:-Mashwar@1234#}"
+            RUN_MIGRATIONS: "${RUN_MIGRATIONS:-false}"
+        networks:
+            - mysql_stack_default
+        volumes:
+            - ./.env:/var/www/html/.env
+            - /var/www/html/mashwar-uploads:/var/www/html/storage/app/public
+
+networks:
+    mysql_stack_default:
+        external: true
