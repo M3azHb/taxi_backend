@@ -53,10 +53,8 @@ class RideController extends Controller
                 'status'         => $ride->status,
                 'estimated_fare' => $ride->estimated_fare,
                 'requested_at'   => $ride->requested_at,
-                'driver'         => [
-                    'id'   => $ride->driver->id,
-                    'name' => $ride->driver->name,
-                ],
+                // لا يوجد سائق بعد — الطلب مبثوث ينتظر القبول.
+                'driver'         => null,
             ],
         ], 201);
     }

@@ -14,7 +14,7 @@ class CreateRideRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'driver_id'              => ['required', 'exists:drivers,id'],
+            // لم يعد العميل يختار سائقاً — الطلب يُبَثّ لكل السائقين المتاحين.
             'car_type_id'            => ['required', 'exists:car_types,id'],
             'pickup_latitude'        => ['required', 'numeric', 'between:-90,90'],
             'pickup_longitude'       => ['required', 'numeric', 'between:-180,180'],

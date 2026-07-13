@@ -107,25 +107,12 @@ class RideService
         throw new Exception('موقع نقطة الانطلاق مطلوب');
     }
         return DB::transaction(function () use ($customer, $data) {
-            // 1. Driver
-            $driver = Driver::findOrFail($data['driver_id']);
-
-            // 2. Driver must be available
-            if (!$driver->isAvailable()) {
-                throw new Exception('السائق غير متاح حاليًا');
-            }
-
-            // 3. Customer must not already have an active ride
+            // 1. العميل يجب ألا يملك رحلة نشطة بالفعل
             if ($customer->rides()->active()->exists()) {
                 throw new Exception('لديك رحلة نشطة بالفعل');
             }
 
-            // 4. Blocking check (either direction)
-            if (BlockList::isBlockedEither($customer, $driver)) {
-                throw new Exception('لا يمكن إنشاء رحلة مع هذا السائق');
-            }
-
-            // 5. Calculate estimated fare (same logic as estimate())
+            // 2. حساب المسافة والأجرة التقديرية
             $distanceKm = $this->calculateDistance(
                 $data['pickup_latitude'],
                 $data['pickup_longitude'],
@@ -136,10 +123,10 @@ class RideService
             $carType = CarType::findOrFail($data['car_type_id']);
             $estimatedFare = $carType->calculateFare($distanceKm);
 
-            // 6. Create the ride
+            // 3. إنشاء الطلب بلا سائق — سيُبَثّ لكل السائقين المتاحين
             $ride = Ride::create([
                 'customer_id'          => $customer->id,
-                'driver_id'            => $driver->id,
+                'driver_id'            => null,
                 'car_type_id'          => $data['car_type_id'],
                 'pickup_latitude'      => $data['pickup_latitude'],
                 'pickup_longitude'     => $data['pickup_longitude'],
@@ -153,16 +140,25 @@ class RideService
                 'requested_at'         => now(),
             ]);
 
-            // 7. Notify the driver
-            $this->notificationService->send(
-                $driver,
-                Notification::TYPE_NEW_RIDE_REQUEST,
-                'طلب رحلة جديد',
-                "لديك طلب من {$customer->name}",
-                ['ride_id' => $ride->id]
-            );
+            // 4. بثّ الطلب: إشعار كل السائقين المتاحين المطابقين لنوع السيارة (وغير المحظورين)
+            $drivers = Driver::online()
+                ->whereHas('car', fn ($q) => $q->where('car_type_id', $data['car_type_id']))
+                ->get();
 
-            return $ride->load('driver');
+            foreach ($drivers as $driver) {
+                if (BlockList::isBlockedEither($customer, $driver)) {
+                    continue;
+                }
+                $this->notificationService->send(
+                    $driver,
+                    Notification::TYPE_NEW_RIDE_REQUEST,
+                    'طلب رحلة جديد',
+                    "لديك طلب من {$customer->name}",
+                    ['ride_id' => $ride->id]
+                );
+            }
+
+            return $ride;
         });
     }
 
@@ -323,11 +319,19 @@ class RideService
 
     public function getPendingRidesForDriver(Driver $driver): Collection
     {
-        return $driver->rides()
-            ->pending()
-            ->with('customer')
+        // نموذج البثّ: كل الطلبات المعلّقة غير المُسنَدة لأي سائق،
+        // المطابقة لنوع سيارة هذا السائق، وغير المحظورة معه.
+        $carTypeId = $driver->car?->car_type_id;
+
+        return Ride::query()
+            ->where('status', Ride::STATUS_PENDING)
+            ->whereNull('driver_id')
+            ->when($carTypeId, fn ($q) => $q->where('car_type_id', $carTypeId))
+            ->with(['customer', 'carType'])
             ->latest('requested_at')
-            ->get();
+            ->get()
+            ->reject(fn (Ride $ride) => BlockList::isBlockedEither($ride->customer, $driver))
+            ->values();
     }
 
     public function getActiveRideForDriver(Driver $driver): ?Ride
@@ -363,20 +367,32 @@ class RideService
     public function acceptRide(Driver $driver, int $rideId): Ride
     {
         return DB::transaction(function () use ($driver, $rideId) {
-            $ride = $driver->rides()
-                ->where('status', Ride::STATUS_PENDING)
-                ->findOrFail($rideId);
-
             if ($driver->availability !== Driver::AVAILABILITY_ONLINE) {
                 throw new Exception('يجب أن تكون متصلًا لقبول الرحلات');
             }
 
-            // نستثني الرحلة الجاري قبولها نفسها (لأنها pending = نشطة)
-            if ($driver->rides()->active()->where('id', '!=', $rideId)->exists()) {
+            if ($driver->rides()->active()->exists()) {
                 throw new Exception('لديك رحلة نشطة بالفعل');
             }
 
+            // قفل الصف: أول سائق يقبل يفوز (first-come-first-served).
+            // whereNull('driver_id') يضمن أن الطلب لم يُسنَد بعد لأحد.
+            $ride = Ride::where('id', $rideId)
+                ->where('status', Ride::STATUS_PENDING)
+                ->whereNull('driver_id')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $ride) {
+                throw new Exception('هذا الطلب لم يعد متاحاً');
+            }
+
+            if (BlockList::isBlockedEither($ride->customer, $driver)) {
+                throw new Exception('لا يمكنك قبول هذا الطلب');
+            }
+
             $ride->update([
+                'driver_id'   => $driver->id,
                 'status'      => Ride::STATUS_ACCEPTED,
                 'car_id'      => $driver->cars()->first()?->id,
                 'accepted_at' => now(),
@@ -392,30 +408,28 @@ class RideService
                 ['ride_id' => $ride->id]
             );
 
-            return $ride->fresh();
+            return $ride->fresh(['driver.car.carType']);
         });
     }
 
     public function rejectRide(Driver $driver, int $rideId, ?string $reason = null): bool
     {
-        $ride = $driver->rides()
-            ->where('status', Ride::STATUS_PENDING)
-            ->findOrFail($rideId);
+        // في نموذج البثّ: "الرفض" مجرد تجاهل من طرف هذا السائق، ولا يُلغي
+        // الطلب لبقية السائقين (يبقى معلّقاً حتى يقبله أحدهم أو يُلغيه العميل).
+        // إن كان الطلب مُسنَداً لهذا السائق فعلاً (قبله ثم تراجع) نعيده للمجمّع.
+        $ride = Ride::where('id', $rideId)
+            ->where('driver_id', $driver->id)
+            ->where('status', Ride::STATUS_ACCEPTED)
+            ->first();
 
-        $ride->update([
-            'status'              => Ride::STATUS_REJECTED,
-            'cancelled_by'        => 'driver',
-            'cancellation_reason' => $reason,
-            'cancelled_at'        => now(),
-        ]);
-
-        $this->notificationService->send(
-            $ride->customer,
-            Notification::TYPE_RIDE_REJECTED,
-            'تم رفض الرحلة',
-            'قام السائق برفض طلب الرحلة',
-            ['ride_id' => $ride->id]
-        );
+        if ($ride) {
+            $ride->update([
+                'driver_id'   => null,
+                'status'      => Ride::STATUS_PENDING,
+                'accepted_at' => null,
+            ]);
+            $driver->update(['availability' => Driver::AVAILABILITY_ONLINE]);
+        }
 
         return true;
     }
