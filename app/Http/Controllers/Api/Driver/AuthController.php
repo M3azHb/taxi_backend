@@ -151,9 +151,9 @@ class AuthController extends Controller
 
     private function issueOtp(string $phone): string
     {
-        // رمز ثابت مؤقتاً: لم نربط مزوّد SMS بعد، فنستخدم "1234" للتجربة والعرض.
-        // عند ربط SMS لاحقاً نُعيده لرمز عشوائي.
-        $code = '1234';
+        // رمز ثابت مؤقتاً: لم نربط مزوّد SMS بعد، فنستخدم "123456" للتجربة والعرض.
+        // ست خانات لتطابق شاشة OTP في تطبيق السائق. عند ربط SMS لاحقاً نُعيده لرمز عشوائي.
+        $code = '123456';
         Cache::put($this->otpKey($phone), $code, now()->addMinutes(10));
 
         return $code;
