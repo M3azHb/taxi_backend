@@ -95,6 +95,60 @@ class RideService
     }
 
     /**
+     * المسافة النهائية المعتمدة للتسعير — السيرفر هو المرجع، وليس التطبيق.
+     * سبب الوجود: تطبيق السائق كان يرسل مسافة وهمية ثابتة (8.2 كم تتزايد)
+     * فتضاعفت الأجرة. الترتيب:
+     *   1) نقاط GPS المسجّلة للرحلة (الأدق والأصعب تلاعباً).
+     *   2) وإلا مسافة التطبيق مُقيّدة بسقف منطقي مقارنةً بمسافة الحجز.
+     *   3) وإلا مسافة الحجز نفسها.
+     */
+    private function resolveFinalDistance(Ride $ride, float $reportedKm): float
+    {
+        $bookingKm = (float) $ride->distance_km; // haversine وقت الحجز
+
+        $trackedKm = $this->distanceFromTrackings($ride);
+        if ($trackedKm > 0.1) {
+            return round($trackedKm, 2);
+        }
+
+        if ($reportedKm <= 0) {
+            return round($bookingKm, 2);
+        }
+
+        // سقف حماية: المسار الفعلي نادراً ما يتجاوز ضعفَي المسافة المستقيمة.
+        $cap = max($bookingKm * 2, $bookingKm + 3);
+
+        return round(min($reportedKm, $cap), 2);
+    }
+
+    /**
+     * مجموع المسافة الفعلية بين نقاط التتبّع المسجّلة (GPS).
+     * يرجع 0 إذا لم تكفِ النقاط.
+     */
+    private function distanceFromTrackings(Ride $ride): float
+    {
+        $points = $ride->trackings()
+            ->orderBy('recorded_at')
+            ->get(['latitude', 'longitude']);
+
+        if ($points->count() < 2) {
+            return 0.0;
+        }
+
+        $total = 0.0;
+        for ($i = 1; $i < $points->count(); $i++) {
+            $total += $this->calculateDistance(
+                (float) $points[$i - 1]->latitude,
+                (float) $points[$i - 1]->longitude,
+                (float) $points[$i]->latitude,
+                (float) $points[$i]->longitude
+            );
+        }
+
+        return $total;
+    }
+
+    /**
      * Haversine formula to calculate distance (in km) between two coordinates.
      */
     private function calculateDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
@@ -146,11 +200,24 @@ class RideService
             $carType = CarType::findOrFail($data['car_type_id']);
             $estimatedFare = $carType->calculateFare($distanceKm);
 
+            // 2.b حفظ كود الخصم مع الرحلة ليُطبَّق عند إنشاء الدفعة بعد الاكتمال.
+            //     (الكود غير الصالح يُتجاهل بهدوء — لا نُفشل الحجز بسببه)
+            $discountCodeId = null;
+            if (! empty($data['discount_code'])) {
+                try {
+                    $discountCodeId = $this->discountCodeService
+                        ->validateCode($data['discount_code'])->id;
+                } catch (Exception $e) {
+                    $discountCodeId = null;
+                }
+            }
+
             // 3. إنشاء الطلب بلا سائق — سيُبَثّ لكل السائقين المتاحين
             $ride = Ride::create([
                 'customer_id'          => $customer->id,
                 'driver_id'            => null,
                 'car_type_id'          => $data['car_type_id'],
+                'discount_code_id'     => $discountCodeId,
                 'pickup_latitude'      => $data['pickup_latitude'],
                 'pickup_longitude'     => $data['pickup_longitude'],
                 'pickup_address'       => $data['pickup_address'] ?? null,
@@ -516,12 +583,15 @@ class RideService
                 ->findOrFail($rideId);
 
             $carType = $ride->carType;
-            $finalFare = $carType->calculateFare($data['distance_km']);
+
+            // السيرفر هو مرجع التسعير — لا نثق بالمسافة القادمة من التطبيق عمياً.
+            $finalDistance = $this->resolveFinalDistance($ride, (float) ($data['distance_km'] ?? 0));
+            $finalFare     = $carType->calculateFare($finalDistance);
 
             $ride->update([
                 'status'           => Ride::STATUS_COMPLETED,
                 'completed_at'     => now(),
-                'distance_km'      => $data['distance_km'],
+                'distance_km'      => $finalDistance,
                 'duration_minutes' => $data['duration_minutes'],
                 'final_fare'       => round($finalFare, 2),
             ]);

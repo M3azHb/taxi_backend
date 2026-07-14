@@ -26,7 +26,8 @@ class AuthController extends Controller
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'email', 'unique:drivers,email'],
             'phone'    => ['required', 'string', 'max:30', 'unique:drivers,phone'],
-            'password' => ['required', 'min:6', 'confirmed'],
+            // بلا 'confirmed': شاشة تسجيل السائق لا تحتوي حقل تأكيد ولا ترسل password_confirmation.
+            'password' => ['required', 'min:6'],
         ]);
 
         Driver::create([

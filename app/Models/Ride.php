@@ -28,6 +28,9 @@ class Ride extends Model
         'car_id',
         'car_type_id',
 
+        // كود الخصم المُطبَّق لحظة الحجز (يُستخدم عند إنشاء الدفعة)
+        'discount_code_id',
+
         // نقطة الانطلاق (التصحيح بناءً على الميجريشن)
         'pickup_latitude',
         'pickup_longitude',
@@ -106,6 +109,14 @@ class Ride extends Model
     public function carType(): BelongsTo
     {
         return $this->belongsTo(CarType::class);
+    }
+
+    /**
+     * كود الخصم المُطبَّق على هذه الرحلة (اختياري).
+     */
+    public function discountCode(): BelongsTo
+    {
+        return $this->belongsTo(DiscountCode::class);
     }
 
     public function trackings(): HasMany
