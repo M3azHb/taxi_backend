@@ -380,7 +380,8 @@ class RideService
 
     public function getRideHistoryForDriver(Driver $driver, array $filters): LengthAwarePaginator
     {
-        $query = $driver->rides()->with(['customer', 'car'])->latest();
+        // نُحمّل الدفعة أيضاً حتى يعرض تطبيق السائق أرباحه الصافية (driver_earning).
+        $query = $driver->rides()->with(['customer', 'car', 'payment'])->latest();
 
         if (($filters['status'] ?? 'all') !== 'all') {
             $query->where('status', $filters['status']);
