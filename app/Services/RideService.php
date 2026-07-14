@@ -9,6 +9,7 @@ use App\Models\Driver;
 use App\Models\Notification;
 use App\Models\Rating;
 use App\Models\Ride;
+use App\Models\Setting;
 use App\Models\Tracking;
 use Exception;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -61,14 +62,36 @@ class RideService
         $totalFare = $subtotal - $discountAmount;
 
         return [
+            // المسافة والمدة (ليست مبالغ مالية)
             'distance_km'      => round($distanceKm, 2),
             'duration_minutes' => $durationMinutes,
-            'base_fare'        => $carType->base_fare,
+
+            // تفاصيل الأجرة (مبالغ مالية بعملة currency)
+            'base_fare'        => round((float) $carType->base_fare, 2),
             'distance_fare'    => round($subtotal - $carType->base_fare, 2),
             'subtotal'         => round($subtotal, 2),
             'discount_amount'  => round($discountAmount, 2),
             'total_fare'       => round($totalFare, 2),
+
+            // رمز العملة الموحّد (من الإعدادات) — يستخدمه التطبيق للعرض
+            'currency'         => self::currencySymbol(),
         ];
+    }
+
+    /**
+     * رمز العملة المعروض، مشتقّ من إعداد app_currency.
+     */
+    public static function currencySymbol(): string
+    {
+        $code = Setting::get('app_currency', 'SYP');
+
+        return match ($code) {
+            'SYP' => 'ل.س',
+            'USD' => '\$',
+            'EUR' => '€',
+            'TRY' => '₺',
+            default => $code,
+        };
     }
 
     /**
