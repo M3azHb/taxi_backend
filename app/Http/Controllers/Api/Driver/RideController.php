@@ -170,9 +170,11 @@ class RideController extends Controller
      */
     public function complete(Request $request, int $id, PaymentService $paymentService): JsonResponse
     {
+        // السعر مُثبَّت من لحظة الحجز، فلم تعد المسافة القادمة من التطبيق تؤثّر
+        // على الأجرة إطلاقاً — نقبلها اختيارياً فقط (للتوافق مع النسخ القديمة).
         $data = $request->validate([
-            'distance_km'      => ['required', 'numeric'],
-            'duration_minutes' => ['required', 'integer'],
+            'distance_km'      => ['nullable', 'numeric'],
+            'duration_minutes' => ['nullable', 'integer'],
         ]);
 
         try {

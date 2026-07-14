@@ -95,60 +95,6 @@ class RideService
     }
 
     /**
-     * المسافة النهائية المعتمدة للتسعير — السيرفر هو المرجع، وليس التطبيق.
-     * سبب الوجود: تطبيق السائق كان يرسل مسافة وهمية ثابتة (8.2 كم تتزايد)
-     * فتضاعفت الأجرة. الترتيب:
-     *   1) نقاط GPS المسجّلة للرحلة (الأدق والأصعب تلاعباً).
-     *   2) وإلا مسافة التطبيق مُقيّدة بسقف منطقي مقارنةً بمسافة الحجز.
-     *   3) وإلا مسافة الحجز نفسها.
-     */
-    private function resolveFinalDistance(Ride $ride, float $reportedKm): float
-    {
-        $bookingKm = (float) $ride->distance_km; // haversine وقت الحجز
-
-        $trackedKm = $this->distanceFromTrackings($ride);
-        if ($trackedKm > 0.1) {
-            return round($trackedKm, 2);
-        }
-
-        if ($reportedKm <= 0) {
-            return round($bookingKm, 2);
-        }
-
-        // سقف حماية: المسار الفعلي نادراً ما يتجاوز ضعفَي المسافة المستقيمة.
-        $cap = max($bookingKm * 2, $bookingKm + 3);
-
-        return round(min($reportedKm, $cap), 2);
-    }
-
-    /**
-     * مجموع المسافة الفعلية بين نقاط التتبّع المسجّلة (GPS).
-     * يرجع 0 إذا لم تكفِ النقاط.
-     */
-    private function distanceFromTrackings(Ride $ride): float
-    {
-        $points = $ride->trackings()
-            ->orderBy('recorded_at')
-            ->get(['latitude', 'longitude']);
-
-        if ($points->count() < 2) {
-            return 0.0;
-        }
-
-        $total = 0.0;
-        for ($i = 1; $i < $points->count(); $i++) {
-            $total += $this->calculateDistance(
-                (float) $points[$i - 1]->latitude,
-                (float) $points[$i - 1]->longitude,
-                (float) $points[$i]->latitude,
-                (float) $points[$i]->longitude
-            );
-        }
-
-        return $total;
-    }
-
-    /**
      * Haversine formula to calculate distance (in km) between two coordinates.
      */
     private function calculateDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
@@ -582,18 +528,15 @@ class RideService
                 ->where('status', Ride::STATUS_IN_PROGRESS)
                 ->findOrFail($rideId);
 
-            $carType = $ride->carType;
-
-            // السيرفر هو مرجع التسعير — لا نثق بالمسافة القادمة من التطبيق عمياً.
-            $finalDistance = $this->resolveFinalDistance($ride, (float) ($data['distance_km'] ?? 0));
-            $finalFare     = $carType->calculateFare($finalDistance);
-
+            // السعر مُثبَّت من لحظة الحجز: هو نفسه الذي رآه العميل ووافق عليه،
+            // ومحسوب من مسافته (انطلاق ← وجهة). لا نُعيد الحساب ولا نثق بأي
+            // مسافة يرسلها تطبيق السائق — هكذا يستحيل أن تتضخّم الأجرة.
+            // ملاحظة: distance_km تبقى كما حُسبت وقت الحجز (لا نلمسها).
             $ride->update([
                 'status'           => Ride::STATUS_COMPLETED,
                 'completed_at'     => now(),
-                'distance_km'      => $finalDistance,
-                'duration_minutes' => $data['duration_minutes'],
-                'final_fare'       => round($finalFare, 2),
+                'final_fare'       => $ride->estimated_fare,
+                'duration_minutes' => $data['duration_minutes'] ?? null,
             ]);
 
             $payment = $paymentService->createPayment($ride);
