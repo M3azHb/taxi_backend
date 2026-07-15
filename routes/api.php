@@ -29,9 +29,14 @@ use Illuminate\Support\Facades\Route;
 | Public Authentication (Customer + Driver)
 |--------------------------------------------------------------------------
 */
-Route::prefix('customer')->group(function () {
-    Route::post('register', [CustomerAuthController::class, 'register']);
-    Route::post('login', [CustomerAuthController::class, 'login']);
+
+Route::prefix('customer/auth')->group(function () {
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('logout', [AuthController::class, 'logout']);
+    });
 });
 
 Route::prefix('driver')->group(function () {
@@ -53,6 +58,7 @@ Route::prefix('customer')
         // Auth (session)
         Route::post('logout', [CustomerAuthController::class, 'logout']);
         Route::get('me', [CustomerAuthController::class, 'me']);
+
 
         // Profile
         Route::get('profile', [CustomerProfileController::class, 'show']);
