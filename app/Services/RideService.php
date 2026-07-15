@@ -146,11 +146,24 @@ class RideService
             $carType = CarType::findOrFail($data['car_type_id']);
             $estimatedFare = $carType->calculateFare($distanceKm);
 
+            // 2.b حفظ كود الخصم مع الرحلة ليُطبَّق عند إنشاء الدفعة بعد الاكتمال.
+            //     (الكود غير الصالح يُتجاهل بهدوء — لا نُفشل الحجز بسببه)
+            $discountCodeId = null;
+            if (! empty($data['discount_code'])) {
+                try {
+                    $discountCodeId = $this->discountCodeService
+                        ->validateCode($data['discount_code'])->id;
+                } catch (Exception $e) {
+                    $discountCodeId = null;
+                }
+            }
+
             // 3. إنشاء الطلب بلا سائق — سيُبَثّ لكل السائقين المتاحين
             $ride = Ride::create([
                 'customer_id'          => $customer->id,
                 'driver_id'            => null,
                 'car_type_id'          => $data['car_type_id'],
+                'discount_code_id'     => $discountCodeId,
                 'pickup_latitude'      => $data['pickup_latitude'],
                 'pickup_longitude'     => $data['pickup_longitude'],
                 'pickup_address'       => $data['pickup_address'] ?? null,
@@ -380,7 +393,8 @@ class RideService
 
     public function getRideHistoryForDriver(Driver $driver, array $filters): LengthAwarePaginator
     {
-        $query = $driver->rides()->with(['customer', 'car'])->latest();
+        // نُحمّل الدفعة أيضاً حتى يعرض تطبيق السائق أرباحه الصافية (driver_earning).
+        $query = $driver->rides()->with(['customer', 'car', 'payment'])->latest();
 
         if (($filters['status'] ?? 'all') !== 'all') {
             $query->where('status', $filters['status']);
@@ -514,15 +528,15 @@ class RideService
                 ->where('status', Ride::STATUS_IN_PROGRESS)
                 ->findOrFail($rideId);
 
-            $carType = $ride->carType;
-            $finalFare = $carType->calculateFare($data['distance_km']);
-
+            // السعر مُثبَّت من لحظة الحجز: هو نفسه الذي رآه العميل ووافق عليه،
+            // ومحسوب من مسافته (انطلاق ← وجهة). لا نُعيد الحساب ولا نثق بأي
+            // مسافة يرسلها تطبيق السائق — هكذا يستحيل أن تتضخّم الأجرة.
+            // ملاحظة: distance_km تبقى كما حُسبت وقت الحجز (لا نلمسها).
             $ride->update([
                 'status'           => Ride::STATUS_COMPLETED,
                 'completed_at'     => now(),
-                'distance_km'      => $data['distance_km'],
-                'duration_minutes' => $data['duration_minutes'],
-                'final_fare'       => round($finalFare, 2),
+                'final_fare'       => $ride->estimated_fare,
+                'duration_minutes' => $data['duration_minutes'] ?? null,
             ]);
 
             $payment = $paymentService->createPayment($ride);

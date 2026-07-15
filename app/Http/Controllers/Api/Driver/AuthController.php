@@ -26,7 +26,8 @@ class AuthController extends Controller
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'email', 'unique:drivers,email'],
             'phone'    => ['required', 'string', 'max:30', 'unique:drivers,phone'],
-            'password' => ['required', 'min:6', 'confirmed'],
+            // بلا 'confirmed': شاشة تسجيل السائق لا تحتوي حقل تأكيد ولا ترسل password_confirmation.
+            'password' => ['required', 'min:6'],
         ]);
 
         Driver::create([
@@ -150,9 +151,9 @@ class AuthController extends Controller
 
     private function issueOtp(string $phone): string
     {
-        // رمز ثابت مؤقتاً: لم نربط مزوّد SMS بعد، فنستخدم "1234" للتجربة والعرض.
-        // عند ربط SMS لاحقاً نُعيده لرمز عشوائي.
-        $code = '1234';
+        // رمز ثابت مؤقتاً: لم نربط مزوّد SMS بعد، فنستخدم "123456" للتجربة والعرض.
+        // ست خانات لتطابق شاشة OTP في تطبيق السائق. عند ربط SMS لاحقاً نُعيده لرمز عشوائي.
+        $code = '123456';
         Cache::put($this->otpKey($phone), $code, now()->addMinutes(10));
 
         return $code;

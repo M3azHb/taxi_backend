@@ -28,15 +28,27 @@ class PaymentService
     {
         $commissionPercentage = (float) Setting::get('commission_percentage', 10);
 
-        $subtotal = $ride->final_fare;
-        $discountAmount = $ride->discount_amount ?? 0;
+        $subtotal = (float) $ride->final_fare;
 
-        $amount = $subtotal - $discountAmount;
+        // الخصم يُقرأ من كود الخصم المحفوظ على الرحلة لحظة الحجز.
+        // (سابقاً كان يُقرأ من $ride->discount_amount — وهو حقل غير موجود
+        //  في جدول rides إطلاقاً، فكان الخصم دائماً صفراً.)
+        $discountAmount = 0.0;
+        $discountCodeId = null;
+        $discount       = $ride->discountCode;
+
+        if ($discount && $discount->isValid()) {
+            $discountAmount = $discount->calculateDiscount($subtotal);
+            $discountCodeId = $discount->id;
+        }
+
+        $amount           = round($subtotal - $discountAmount, 2);
         $commissionAmount = round($amount * ($commissionPercentage / 100), 2);
-        $driverEarning = $amount - $commissionAmount;
+        $driverEarning    = round($amount - $commissionAmount, 2);
 
-        return Payment::create([
+        $payment = Payment::create([
             'ride_id'               => $ride->id,
+            'discount_code_id'      => $discountCodeId,
             'subtotal'              => $subtotal,
             'discount_amount'       => $discountAmount,
             'amount'                => $amount,
@@ -46,6 +58,13 @@ class PaymentService
             'payment_method'        => 'cash',
             'status'                => Payment::STATUS_PENDING,
         ]);
+
+        // تسجيل استخدام الكود — لهذا كانت لوحة التحكم تعرض "استُخدم: 0" دائماً.
+        if ($discount) {
+            $discount->incrementUsage();
+        }
+
+        return $payment;
     }
 
     /**
